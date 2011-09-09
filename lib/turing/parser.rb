@@ -1,3 +1,7 @@
+require 'rubygems'
+require 'parslet'
+require 'ap'
+
 module Turing
   class Parser
     def self.parse(str)
@@ -58,4 +62,75 @@ module Turing
       end
     end
   end
+  
+  class P < Parslet::Parser
+    root(:configuration)
+    rule(:configuration) { line.repeat(1) }
+
+    rule(:line) do
+      label.as(:state)     >> comma >>
+      sym.as(:symbol)      >> comma >>
+      action.as(:actions)      >> comma >>
+      label.as(:end_state) >> (match('\n') | eof)
+    end
+    
+    rule(:label)  { char.as(:char) }
+    rule(:sym)    { str('None').as(:value) | char.as(:value) }
+    rule(:action) { print.as(:print).maybe >> move.as(:move) }
+    
+    rule(:print) { str('P') >> char.as(:int) }
+    rule(:move)  { str('L').as(:dir) | str('R').as(:dir) | str('E').as(:empty) }
+    
+    # helpers
+    rule(:eof)  { any.absnt? }
+    rule(:char) { match('\w') }
+
+    rule(:space)  { match('\s').repeat(1) }
+    rule(:space?) { space.maybe           }
+
+    rule(:comma) { space? >> str(',') >> space? }
+  end
+  
+  class T < Parslet::Transform
+    rule( :state     => simple(:state),
+          :symbol    => simple(:sym)  ,
+          :actions   => subtree(:ops) ,
+          :end_state => simple(:fin)  ) do
+      [ state, sym, ops, fin ]
+    end
+
+    # symbol
+    rule(:value => 'None')        { nil }
+    rule(:value => simple(:char)) { String(char) }
+    
+    rule(:print => simple(:number),:move => simple(:m)) do
+      [ [:print , number] , [m] ]
+    end
+
+    rule(:move => simple(:move)) { [Array(move)] }
+    rule(:dir => 'L') { :left  }
+    rule(:dir => 'R') { :right }
+    
+    rule(:int  => simple(:i)) { Integer(i)       }
+    rule(:char => simple(:c)) { String(c).to_sym }
+  end
+
 end
+
+input = <<-HEREDOCS
+b, None, P0R, c
+c, None, R,   e
+e, None, P1R, f
+f, None, R,   b
+HEREDOCS
+
+res = [
+  [ :b, nil, [[ :print, 0 ], [ :right ]], :c ],
+  [ :c, nil, [[ :right ]],                :e ],
+  [ :e, nil, [[ :print, 1 ], [ :right ]], :f ],
+  [ :f, nil, [[ :right ]],                :b ]
+]
+
+ap a=Turing::P.new.parse(input)
+ap b=Turing::T.new.apply(a)
+ap b == res

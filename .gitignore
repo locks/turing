@@ -5,3 +5,7 @@ pkg/*
 tags
 .yardoc/
 doc/
+
+# OSX
+*.DS_Store
+*.rbc
