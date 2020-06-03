@@ -63,25 +63,7 @@ module Turing
     end
   end
   
-  class P < Parslet::Parser
-    root(:configuration)
-    rule(:configuration) { line.repeat(1) }
-
-    rule(:line) do
-      label.as(:state)     >> comma >>
-      sym.as(:symbol)      >> comma >>
-      action.as(:actions)      >> comma >>
-      label.as(:end_state) >> (match('\n') | eof)
-    end
-    
-    rule(:label)  { char.as(:char) }
-    rule(:sym)    { str('None').as(:value) | char.as(:value) }
-    rule(:action) { print.as(:print).maybe >> move.as(:move) }
-    
-    rule(:print) { str('P') >> char.as(:int) }
-    rule(:move)  { str('L').as(:dir) | str('R').as(:dir) | str('E').as(:empty) }
-    
-    # helpers
+  class Parslet::Parser
     rule(:eof)  { any.absnt? }
     rule(:char) { match('\w') }
 
@@ -91,11 +73,31 @@ module Turing
     rule(:comma) { space? >> str(',') >> space? }
   end
   
+  class P < Parslet::Parser
+    root(:configuration)
+    rule(:configuration) { line.repeat(1) }
+
+    rule(:line) do
+      label.as(:state)     >> comma >>
+      sym.as(:symbol)      >> comma >>
+      action.as(:actions)  >> comma >>
+      label.as(:end_state) >> (match('\n') | eof)
+    end
+    
+    rule(:label)  { char.as(:char) }
+    rule(:sym)    { str('None').as(:value) | char.as(:value) }
+    rule(:action) { print.as(:print).maybe >> move.as(:move) }
+    
+    rule(:print) { str('P') >> char.as(:int) }
+    rule(:move)  { str('L').as(:dir) | str('R').as(:dir) | str('E').as(:empty) }
+  end
+  
   class T < Parslet::Transform
     rule( :state     => simple(:state),
           :symbol    => simple(:sym)  ,
           :actions   => subtree(:ops) ,
-          :end_state => simple(:fin)  ) do
+          :end_state => simple(:fin)
+        ) do
       [ state, sym, ops, fin ]
     end
 
